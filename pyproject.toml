@@ -1,0 +1,72 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "munjiz-os-controller"
+version = "2.0.0"
+description = "محرك التوجيه الهجين ثلاثي الطبقات وخادم MCP للتحكم الكامل والبصري في نظام Windows لتطبيق مُنجز (Munjiz 3-Layer Hybrid OS & Vision MCP Server)"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.10"
+authors = [
+    { name = "Munjiz AI Engineering" }
+]
+keywords = [
+    "munjiz",
+    "mcp",
+    "computer-use",
+    "gui-agent",
+    "omniparser",
+    "windows-automation",
+    "uiautomation",
+    "browser-use",
+]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Software Development :: Libraries :: Application Frameworks",
+]
+
+dependencies = [
+    "mcp>=1.2.0",
+    "pyautogui>=0.9.54",
+    "pyperclip>=1.8.2",
+    "pillow>=10.0.0",
+    "opencv-python>=4.8.0",
+    "numpy>=1.24.0",
+    "pandas>=2.0.0",
+    "openpyxl>=3.1.0",
+    "uiautomation>=2.0.18; platform_system == 'Windows'",
+    "pywinauto>=0.6.8; platform_system == 'Windows'",
+]
+
+[project.optional-dependencies]
+web = [
+    "browser-use>=0.1.40",
+    "langchain-openai>=0.2.0",
+    "playwright>=1.48.0",
+]
+dev = [
+    "pytest>=8.0.0",
+    "ruff>=0.6.0",
+]
+
+[project.scripts]
+munjiz-mcp = "munjiz_os_controller:main"
+munjiz-os-controller = "munjiz_os_controller:main"
+
+[tool.setuptools]
+py-modules = ["munjiz_os_controller"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"

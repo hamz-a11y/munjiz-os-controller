@@ -1,0 +1,1135 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>مُنجز | لوحة المشاهدة الحية والتحكم البصري الهجين (Munjiz Live OS Viewer v2.0)</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg-primary: #0b0f19;
+      --bg-card: #111827;
+      --bg-elevated: #1e293b;
+      --accent-blue: #3b82f6;
+      --accent-emerald: #10b981;
+      --accent-amber: #f59e0b;
+      --accent-rose: #f43f5e;
+    }
+    body {
+      font-family: 'Cairo', sans-serif;
+      background-color: var(--bg-primary);
+      color: #f1f5f9;
+      overflow-x: hidden;
+    }
+    .font-mono-code {
+      font-family: 'JetBrains Mono', monospace;
+      direction: ltr;
+    }
+    .glass-panel {
+      background: rgba(17, 24, 39, 0.88);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .layer-badge-1 {
+      background: rgba(16, 185, 129, 0.15);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, 0.35);
+    }
+    .layer-badge-2 {
+      background: rgba(59, 130, 246, 0.15);
+      color: #60a5fa;
+      border: 1px solid rgba(59, 130, 246, 0.35);
+    }
+    .layer-badge-3 {
+      background: rgba(244, 63, 94, 0.15);
+      color: #fb7185;
+      border: 1px solid rgba(244, 63, 94, 0.35);
+    }
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0f172a;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #475569;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col selection:bg-blue-500 selection:text-white">
+
+  <!-- إشعار منبثق داخل الصفحة (In-Page Toast) -->
+  <div id="toastContainer" class="fixed bottom-5 left-5 z-50 hidden transition-all duration-300">
+    <div class="glass-panel px-4 py-3 rounded-xl shadow-2xl border border-emerald-500/40 flex items-center gap-3">
+      <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping"></span>
+      <span id="toastMessage" class="text-sm font-medium text-slate-100"></span>
+    </div>
+  </div>
+
+  <!-- نافذة إعدادات MCP المنبثقة (MCP Config Modal) -->
+  <div id="mcpModal" class="fixed inset-0 z-40 bg-black/75 backdrop-blur-sm hidden items-center justify-center p-4">
+    <div class="glass-panel max-w-2xl w-full rounded-2xl p-6 border border-slate-700 shadow-2xl">
+      <div class="flex items-center justify-between pb-4 border-b border-slate-800">
+        <div>
+          <h2 class="text-lg font-bold text-white">إعداد ربط خادم MCP مع تطبيق "مُنجز"</h2>
+          <p class="text-xs text-slate-400 mt-0.5">أضف هذا التكوين إلى ملف <code class="font-mono-code text-blue-400">mcp_config.json</code> لتفعيل الطبقات الثلاث والبث المرئي</p>
+        </div>
+        <button id="closeModalBtn" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm transition">إغلاق</button>
+      </div>
+      <div class="mt-4">
+        <pre id="mcpConfigCode" class="font-mono-code text-xs bg-slate-950 text-emerald-300 p-4 rounded-xl border border-slate-800 overflow-x-auto leading-relaxed">{
+  "mcpServers": {
+    "munjiz-os-controller": {
+      "command": "munjiz-mcp",
+      "args": ["--mode", "mcp"],
+      "env": {
+        "MUNJIZ_OMNIPARSER_URL": "http://127.0.0.1:8000/parse",
+        "MUNJIZ_LLM_MODEL": "gpt-4o"
+      }
+    }
+  }
+}</pre>
+      </div>
+      <div class="mt-4 flex flex-wrap items-center justify-between gap-3">
+        <div class="text-xs text-slate-400">
+          أمر تشغيل خادم الرؤية المحلي: <code class="font-mono-code text-amber-300 bg-slate-900 px-2 py-0.5 rounded">python omniparser_server.py --port 8000</code>
+        </div>
+        <button id="copyMcpConfigBtn" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold transition flex items-center gap-2">
+          <span>نسخ إعدادات MCP</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- الشريط العلوي (Top Header) -->
+  <header class="glass-panel border-b border-slate-800/80 sticky top-0 z-30 px-4 lg:px-6 py-3">
+    <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-emerald-500 flex items-center justify-center shadow-lg shadow-blue-600/20 font-extrabold text-lg text-white">
+          م
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="text-base lg:text-lg font-bold text-white">مُنجز — لوحة المشاهدة الحية والتحكم البصري الهجين</h1>
+            <span class="text-xs px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 font-medium">v2.0 Live HUD</span>
+          </div>
+          <p class="text-xs text-slate-400">محرك التوجيه ثلاثي الطبقات: PowerShell CLI + Windows UIA + OmniParser V2 Set-of-Mark</p>
+        </div>
+      </div>
+
+      <!-- مؤشرات الحالة السريعة وأزرار التحكم العليا -->
+      <div class="flex flex-wrap items-center gap-2">
+        <div id="activeLayerIndicator" class="layer-badge-3 px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-2">
+          <span class="w-2 h-2 rounded-full bg-current animate-pulse"></span>
+          <span id="activeLayerText">الطبقة النشطة: 3 (OmniParser Vision + SoM)</span>
+        </div>
+
+        <button id="runScenarioBtn" class="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition shadow-lg shadow-emerald-600/20 flex items-center gap-1.5">
+          <span id="runScenarioIcon">▶</span>
+          <span id="runScenarioLabel">تشغيل سيناريو مُنجز التلقائي</span>
+        </button>
+
+        <button id="stepScenarioBtn" class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700 transition">
+          خطوة تالية ⏭
+        </button>
+
+        <button id="resetScenarioBtn" class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium border border-slate-700 transition">
+          إعادة ضبط ↺
+        </button>
+
+        <button id="openModalBtn" class="px-3 py-1.5 rounded-xl bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 border border-blue-500/30 text-xs font-semibold transition">
+          إعدادات MCP ⚙
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- المحتوى الرئيسي (Main Grid) -->
+  <main class="max-w-7xl w-full mx-auto flex-1 p-4 lg:p-6 grid grid-cols-1 lg:grid-cols-12 gap-5">
+
+    <!-- العمود الأيمن/الأوسط: شاشة البث الحي ومؤشر الماوس (8 أعمدة) -->
+    <section class="lg:col-span-8 flex flex-col gap-4">
+
+      <!-- شريط مقاييس الشاشة والمؤشر الحي -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div class="glass-panel rounded-xl p-3 border border-slate-800">
+          <div class="text-xs text-slate-400">إحداثيات مؤشر الماوس الحي</div>
+          <div id="cursorCoordsReadout" class="font-mono-code text-base font-bold text-rose-400 mt-1">X: 240, Y: 180</div>
+          <div class="text-[11px] text-slate-500 mt-0.5">يُحدّث لحظياً عبر GetCursorPos</div>
+        </div>
+
+        <div class="glass-panel rounded-xl p-3 border border-slate-800">
+          <div class="text-xs text-slate-400">آخر هدف نقر / إجراء</div>
+          <div id="lastTargetReadout" class="font-mono-code text-sm font-bold text-blue-400 mt-1 truncate">[1] حقل اسم العميل</div>
+          <div id="lastActionSub" class="text-[11px] text-slate-500 mt-0.5">click + Ctrl+V Paste</div>
+        </div>
+
+        <div class="glass-panel rounded-xl p-3 border border-slate-800">
+          <div class="text-xs text-slate-400">عناصر Set-of-Mark المكتشفة</div>
+          <div id="somCountReadout" class="text-base font-bold text-emerald-400 mt-1">6 عناصر تفاعلية</div>
+          <div class="text-[11px] text-slate-500 mt-0.5">دقة DPI Awareness V2: 100%</div>
+        </div>
+
+        <div class="glass-panel rounded-xl p-3 border border-slate-800">
+          <div class="text-xs text-slate-400">زمن استجابة الطبقة</div>
+          <div id="latencyReadout" class="font-mono-code text-base font-bold text-amber-400 mt-1">42 ms</div>
+          <div id="clipboardStateReadout" class="text-[11px] text-slate-500 mt-0.5">الحافظة العربية: جاهزة</div>
+        </div>
+      </div>
+
+      <!-- إطار شاشة المشاهدة الحية (Live Screen Canvas Card) -->
+      <div class="glass-panel rounded-2xl border border-slate-800 overflow-hidden flex flex-col shadow-2xl">
+        <!-- شريط أدوات الشاشة -->
+        <div class="bg-slate-900/90 px-4 py-2.5 border-b border-slate-800 flex flex-wrap items-center justify-between gap-2">
+          <div class="flex items-center gap-2">
+            <span class="text-xs font-bold text-slate-300">النافذة النشطة:</span>
+            <div class="inline-flex rounded-lg bg-slate-950 p-0.5 border border-slate-800">
+              <button data-scene="accounting" class="scene-tab-btn px-2.5 py-1 rounded-md text-xs font-semibold bg-blue-600 text-white transition">
+                النظام المحاسبي (طبقة 3 - Vision)
+              </button>
+              <button data-scene="explorer" class="scene-tab-btn px-2.5 py-1 rounded-md text-xs font-semibold text-slate-400 hover:text-white transition">
+                مستكشف ويندوز (طبقة 2 - UIA)
+              </button>
+              <button data-scene="powershell" class="scene-tab-btn px-2.5 py-1 rounded-md text-xs font-semibold text-slate-400 hover:text-white transition">
+                محرك البيانات (طبقة 1 - CLI)
+              </button>
+            </div>
+          </div>
+
+          <!-- مفاتيح إظهار/إخفاء طبقات الرسم البصري -->
+          <div class="flex flex-wrap items-center gap-3 text-xs">
+            <label class="flex items-center gap-1.5 cursor-pointer select-none text-slate-300">
+              <input type="checkbox" id="toggleSomBoxes" checked class="rounded accent-blue-500" />
+              <span>صناديق SoM المرقمة</span>
+            </label>
+            <label class="flex items-center gap-1.5 cursor-pointer select-none text-slate-300">
+              <input type="checkbox" id="toggleTrajectory" checked class="rounded accent-rose-500" />
+              <span>مؤشر ومسار الماوس</span>
+            </label>
+            <label class="flex items-center gap-1.5 cursor-pointer select-none text-slate-300">
+              <input type="checkbox" id="toggleRippleHud" checked class="rounded accent-emerald-500" />
+              <span>وميض النقر الحي HUD</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- لوحة الرسم التفاعلية (Interactive Screen Canvas) -->
+        <div class="relative bg-slate-950 w-full flex items-center justify-center p-2 sm:p-4">
+          <canvas id="liveScreenCanvas" width="880" height="480" class="w-full h-auto rounded-xl border border-slate-800 shadow-inner cursor-crosshair"></canvas>
+        </div>
+
+        <!-- شريط إرشادي أسفل الشاشة -->
+        <div class="bg-slate-900/70 px-4 py-2 border-t border-slate-800 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-400">
+          <span>💡 انقر مباشرة على أي صندوق مرقّم <code class="font-mono-code text-rose-400">[box_id]</code> داخل الشاشة لتحريك مؤشر الماوس الفعلي نحوه ومحاكاة النقر والكتابة.</span>
+          <span id="canvasStatusHint" class="text-emerald-400 font-medium">حالة البث: متصل ومستقر</span>
+        </div>
+      </div>
+
+      <!-- لوحة الإدخال والتحكم اليدوي السريع (Manual Smart Interact & Arabic Paste Bar) -->
+      <div class="glass-panel rounded-2xl p-4 border border-slate-800">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-sm font-bold text-white flex items-center gap-2">
+            <span>🎮</span>
+            <span>اختبار أداة التفاعل الذكي وحقن النصوص العربية (<code class="font-mono-code text-blue-400">smart_interact</code> + <code class="font-mono-code text-emerald-400">pyperclip</code>)</span>
+          </h2>
+          <span class="text-xs text-slate-400">ينسخ النص العربي للحافظة ويرسل Ctrl+V تلقائياً</span>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end">
+          <div class="sm:col-span-3">
+            <label for="targetBoxSelect" class="block text-xs text-slate-400 mb-1">العنصر المستهدف (<code class="font-mono-code">box_id</code>)</label>
+            <select id="targetBoxSelect" class="w-full rounded-xl bg-slate-900 border border-slate-700 text-xs text-white px-3 py-2 focus:outline-none focus:border-blue-500">
+            </select>
+          </div>
+
+          <div class="sm:col-span-2">
+            <label for="mouseActionSelect" class="block text-xs text-slate-400 mb-1">حركة الفأرة</label>
+            <select id="mouseActionSelect" class="w-full rounded-xl bg-slate-900 border border-slate-700 text-xs text-white px-3 py-2 focus:outline-none focus:border-blue-500">
+              <option value="click">نقر مفرد (click)</option>
+              <option value="double_click">نقر مزدوج (double_click)</option>
+              <option value="right_click">نقر يميني (right_click)</option>
+              <option value="move">تحريك فقط (move)</option>
+            </select>
+          </div>
+
+          <div class="sm:col-span-5">
+            <label for="arabicTextInput" class="block text-xs text-slate-400 mb-1">النص العربي المراد كتابته في الحقل (اختياري)</label>
+            <input id="arabicTextInput" type="text" value="شركة آفاق التقنية المتقدمة" placeholder="اكتب نصاً عربياً أو إنجليزياً..." class="w-full rounded-xl bg-slate-900 border border-slate-700 text-xs text-white px-3 py-2 focus:outline-none focus:border-blue-500" />
+          </div>
+
+          <div class="sm:col-span-2">
+            <button id="executeManualActionBtn" class="w-full py-2 px-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition shadow-md shadow-blue-600/20">
+              تنفيذ الأمر ⚡
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- العمود الأيسر: قائمة عناصر Set-of-Mark وسجل أوامر MCP (4 أعمدة) -->
+    <aside class="lg:col-span-4 flex flex-col gap-4">
+
+      <!-- بطاقة عناصر الشاشة المرقمة (Detected Set-of-Mark Elements) -->
+      <div class="glass-panel rounded-2xl p-4 border border-slate-800 flex flex-col">
+        <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+          <div>
+            <h2 class="text-sm font-bold text-white">عناصر الشاشة المستخرجة (SoM / UIA)</h2>
+            <p class="text-[11px] text-slate-400">انقر على أي عنصر لتوجيه مؤشر الماوس نحوه</p>
+          </div>
+          <span id="somBadgeSource" class="text-[11px] font-mono-code px-2 py-0.5 rounded bg-rose-500/15 text-rose-300 border border-rose-500/30">omniparser_v2</span>
+        </div>
+
+        <div id="elementsListContainer" class="mt-3 space-y-2 max-h-60 overflow-y-auto pl-1">
+        </div>
+      </div>
+
+      <!-- بطاقة طابور بيانات الإكسل (Layer 1 Fast Excel Queue) -->
+      <div class="glass-panel rounded-2xl p-4 border border-slate-800 flex flex-col">
+        <div class="flex items-center justify-between pb-2.5 border-b border-slate-800">
+          <div>
+            <h2 class="text-sm font-bold text-white">طابور بيانات الإكسل (الطبقة 1 - CLI)</h2>
+            <p class="text-[11px] text-slate-400">قُرئت في الخلفية عبر <code class="font-mono-code text-emerald-400">read_excel_or_csv</code> بدون فتح Excel</p>
+          </div>
+          <span class="layer-badge-1 text-[10px] px-2 py-0.5 rounded-full font-bold">0.8 ms</span>
+        </div>
+        <div id="excelQueueContainer" class="mt-2.5 space-y-1.5 text-xs">
+        </div>
+      </div>
+
+      <!-- سجل استدعاءات بروتوكول MCP المباشر (Live MCP JSON-RPC Stream) -->
+      <div class="glass-panel rounded-2xl p-4 border border-slate-800 flex-1 flex flex-col min-h-[250px]">
+        <div class="flex items-center justify-between pb-2.5 border-b border-slate-800">
+          <div>
+            <h2 class="text-sm font-bold text-white">سجل أوامر خادم MCP المباشر</h2>
+            <p class="text-[11px] text-slate-400">البروتوكول: <code class="font-mono-code text-blue-400">munjiz-os-controller (stdio)</code></p>
+          </div>
+          <button id="clearLogBtn" class="text-[11px] text-slate-400 hover:text-white px-2 py-0.5 rounded bg-slate-800">مسح السجل</button>
+        </div>
+
+        <div id="mcpLogsContainer" class="mt-3 flex-1 space-y-2 overflow-y-auto max-h-64 font-mono-code text-[11px] pr-1">
+        </div>
+      </div>
+
+    </aside>
+  </main>
+
+  <script>
+    // =========================================================================
+    // حالة التطبيق والبيانات المرجعية للطبقات الثلاث (In-Memory Grounded State)
+    // =========================================================================
+    const state = {
+      currentScene: 'accounting', // 'accounting' | 'explorer' | 'powershell'
+      showSomBoxes: true,
+      showTrajectory: true,
+      showRippleHud: true,
+      cursor: { x: 240, y: 180 },
+      prevCursor: { x: 120, y: 90 },
+      targetCursor: { x: 240, y: 180 },
+      animProgress: 1.0,
+      lastActionName: 'inspect_screen(mode="auto")',
+      lastTargetLabel: '[1] حقل اسم العميل',
+      ripples: [],
+      scenarioRunning: false,
+      scenarioStepIndex: 0,
+      scenarioTimer: null,
+      // بيانات العملاء المقروءة عبر الطبقة الأولى (read_excel_or_csv)
+      excelClients: [
+        { id: 101, name: 'أحمد بن محمد العتيبي', amount: '4500', ref: 'INV-2026-101', status: 'تم التسجيل' },
+        { id: 102, name: 'سارة بنت عبدالله القحطاني', amount: '8200', ref: 'INV-2026-102', status: 'قيد الإدخال' },
+        { id: 103, name: 'شركة آفاق التقنية المتقدمة', amount: '15000', ref: 'INV-2026-103', status: 'في الانتظار' }
+      ],
+      // قيم الحقول داخل شاشة النظام المحاسبي المحاكى
+      accountingForm: {
+        clientName: 'أحمد بن محمد العتيبي',
+        amountSar: '4500',
+        referenceNo: 'INV-2026-101',
+        branch: 'الفرع الرئيسي - الرياض',
+        savedReceipts: [
+          { id: 'REC-01', name: 'مؤسسة النور التجارية', amount: '3200 ر.س', time: '11:40:12' }
+        ]
+      }
+    };
+
+    // تعريف المشاهد الثلاثة وعناصر Set-of-Mark / UIA لكل مشهد
+    const sceneConfigs = {
+      accounting: {
+        title: 'نظام آفاق المحاسبي الموحد v4.2 (واجهة Canvas مغلقة — الطبقة الثالثة)',
+        layerBadgeClass: 'layer-badge-3',
+        layerText: 'الطبقة النشطة: 3 (OmniParser V2 Vision + SoM)',
+        sourceTag: 'omniparser_v2',
+        latency: '42 ms',
+        elements: [
+          { box_id: 1, label: 'حقل اسم العميل', type: 'text_input', bbox: [480, 118, 820, 158], color: '#ef4444' },
+          { box_id: 2, label: 'حقل المبلغ (ر.س)', type: 'text_input', bbox: [480, 178, 820, 218], color: '#3b82f6' },
+          { box_id: 3, label: 'حقل رقم المرجع', type: 'text_input', bbox: [480, 238, 820, 278], color: '#10b981' },
+          { box_id: 4, label: 'زر حفظ الإيصال', type: 'button', bbox: [660, 305, 820, 350], color: '#f59e0b' },
+          { box_id: 5, label: 'زر طباعة إيصال PDF', type: 'button', bbox: [480, 305, 645, 350], color: '#8b5cf6' },
+          { box_id: 6, label: 'قائمة الفرع المحاسبي', type: 'dropdown', bbox: [60, 118, 420, 158], color: '#ec4899' }
+        ]
+      },
+      explorer: {
+        title: 'مستكشف ملفات Windows — C:\\Projects\\Munjiz (تحكم هيكلي — الطبقة الثانية)',
+        layerBadgeClass: 'layer-badge-2',
+        layerText: 'الطبقة النشطة: 2 (Windows UI Automation Tree)',
+        sourceTag: 'uiautomation',
+        latency: '6 ms',
+        elements: [
+          { box_id: 1, label: 'شريط عنوان المسار (AddressBar)', type: 'EditControl', bbox: [140, 62, 720, 96], color: '#3b82f6' },
+          { box_id: 2, label: 'ملف project_clients.xlsx', type: 'ListItemControl', bbox: [220, 140, 810, 185], color: '#10b981' },
+          { box_id: 3, label: 'ملف munjiz_os_controller.py', type: 'ListItemControl', bbox: [220, 198, 810, 243], color: '#f59e0b' },
+          { box_id: 4, label: 'زر مجلد جديد (New Folder)', type: 'ButtonControl', bbox: [735, 62, 845, 96], color: '#8b5cf6' }
+        ]
+      },
+      powershell: {
+        title: 'محرك التنفيذ الخلفي PowerShell + Pandas (بدون واجهة — الطبقة الأولى)',
+        layerBadgeClass: 'layer-badge-1',
+        layerText: 'الطبقة النشطة: 1 (System CLI / Zero-Token)',
+        sourceTag: 'system_cli',
+        latency: '0.8 ms',
+        elements: [
+          { box_id: 1, label: 'تنفيذ read_excel_or_csv السريع', type: 'cli_task', bbox: [80, 360, 420, 415], color: '#10b981' },
+          { box_id: 2, label: 'فحص حالة خادم OmniParser V2', type: 'cli_task', bbox: [450, 360, 800, 415], color: '#3b82f6' }
+        ]
+      }
+    };
+
+    // خطوات السيناريو التلقائي الواقعي (End-to-End Automated Workflow Steps)
+    const automatedSteps = [
+      {
+        scene: 'powershell',
+        layer: 'layer_1_system_cli',
+        tool: 'read_excel_or_csv',
+        args: { file_path: 'C:/Projects/project_clients.xlsx' },
+        targetBoxId: 1,
+        note: 'قراءة 3 عملاء من ملف الإكسل في الخلفية خلال 0.8ms دون فتح برنامج Excel بالماوس.',
+        mutate: () => {
+          state.excelClients[0].status = 'تم الاستخراج (جاهز)';
+          state.excelClients[1].status = 'تم الاستخراج (جاهز)';
+          state.excelClients[2].status = 'تم الاستخراج (جاهز)';
+        }
+      },
+      {
+        scene: 'accounting',
+        layer: 'layer_2_structural_ui_dom',
+        tool: 'window_manager',
+        args: { operation: 'focus', title_query: 'نظام آفاق المحاسبي' },
+        targetBoxId: 6,
+        note: 'جلب نافذة النظام المحاسبي إلى المقدمة (Focus) وضبط Per-Monitor DPI Awareness.',
+        mutate: () => {}
+      },
+      {
+        scene: 'accounting',
+        layer: 'layer_3_pure_vision_omniparser',
+        tool: 'inspect_screen',
+        args: { mode: 'auto' },
+        targetBoxId: 1,
+        note: 'اكتشاف واجهة Canvas مغلقة؛ تفعيل OmniParser V2 تلقائياً وترقيم 6 عناصر تفاعلية.',
+        mutate: () => {
+          state.showSomBoxes = true;
+          document.getElementById('toggleSomBoxes').checked = true;
+        }
+      },
+      {
+        scene: 'accounting',
+        layer: 'layer_3_pure_vision_omniparser',
+        tool: 'smart_interact',
+        args: { box_id: 1, action: 'click', text_to_type: 'سارة بنت عبدالله القحطاني' },
+        targetBoxId: 1,
+        note: 'تحريك الماوس إلى الصندوق [1] وحقن الاسم العربي عبر الحافظة (pyperclip + Ctrl+V).',
+        mutate: () => {
+          state.accountingForm.clientName = 'سارة بنت عبدالله القحطاني';
+          state.excelClients[1].status = 'جاري التسجيل...';
+        }
+      },
+      {
+        scene: 'accounting',
+        layer: 'layer_3_pure_vision_omniparser',
+        tool: 'smart_interact',
+        args: { box_id: 2, action: 'click', text_to_type: '8200' },
+        targetBoxId: 2,
+        note: 'تحريك الماوس إلى الصندوق [2] وكتابة المبلغ (8200 ر.س).',
+        mutate: () => {
+          state.accountingForm.amountSar = '8200';
+          state.accountingForm.referenceNo = 'INV-2026-102';
+        }
+      },
+      {
+        scene: 'accounting',
+        layer: 'layer_3_pure_vision_omniparser',
+        tool: 'gui_action',
+        args: { action: 'click', box_id: 4 },
+        targetBoxId: 4,
+        note: 'النقر البصري على الصندوق [4] (زر حفظ الإيصال) وإصدار إيصال العميل بنجاح!',
+        mutate: () => {
+          const now = new Date().toLocaleTimeString('en-GB');
+          state.accountingForm.savedReceipts.unshift({
+            id: 'REC-0' + (state.accountingForm.savedReceipts.length + 1),
+            name: state.accountingForm.clientName,
+            amount: state.accountingForm.amountSar + ' ر.س',
+            time: now
+          });
+          state.excelClients[1].status = 'تم التسجيل ✓';
+        }
+      }
+    ];
+
+    // =========================================================================
+    // دوال المساعدة والتنبيهات (Toast & Logs)
+    // =========================================================================
+    function showToast(msg) {
+      const container = document.getElementById('toastContainer');
+      const textEl = document.getElementById('toastMessage');
+      textEl.textContent = msg;
+      container.classList.remove('hidden');
+      clearTimeout(window._toastTimer);
+      window._toastTimer = setTimeout(() => {
+        container.classList.add('hidden');
+      }, 2800);
+    }
+
+    function appendMcpLog(layer, toolName, argsObj, noteText) {
+      const container = document.getElementById('mcpLogsContainer');
+      const timeStr = new Date().toLocaleTimeString('en-GB');
+      const badgeColor =
+        layer.includes('layer_1') ? 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10' :
+        layer.includes('layer_2') ? 'text-blue-400 border-blue-500/30 bg-blue-500/10' :
+        'text-rose-400 border-rose-500/30 bg-rose-500/10';
+
+      const item = document.createElement('div');
+      item.className = 'p-2.5 rounded-xl bg-slate-950/90 border border-slate-800/90 space-y-1';
+      item.innerHTML = `
+        <div class="flex items-center justify-between">
+          <span class="font-bold text-white">${toolName}()</span>
+          <span class="text-[10px] px-1.5 py-0.5 rounded border ${badgeColor}">${layer}</span>
+        </div>
+        <div class="text-slate-400 break-all">${JSON.stringify(argsObj)}</div>
+        <div class="text-slate-300 font-sans text-xs pt-0.5" dir="rtl">${noteText} <span class="text-slate-500 text-[10px]">(${timeStr})</span></div>
+      `;
+      container.prepend(item);
+    }
+
+    // =========================================================================
+    // تحديث القوائم الجانبية ومؤشرات الحالة (UI Sync)
+    // =========================================================================
+    function syncSidebarAndIndicators() {
+      const cfg = sceneConfigs[state.currentScene];
+
+      // تحديث شارة الطبقة النشطة
+      const indicator = document.getElementById('activeLayerIndicator');
+      indicator.className = `${cfg.layerBadgeClass} px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-2`;
+      document.getElementById('activeLayerText').textContent = cfg.layerText;
+      document.getElementById('somBadgeSource').textContent = cfg.sourceTag;
+      document.getElementById('somCountReadout').textContent = `${cfg.elements.length} عناصر تفاعلية`;
+      document.getElementById('latencyReadout').textContent = cfg.latency;
+
+      // تحديث أزرار التبويب للمشاهد
+      document.querySelectorAll('.scene-tab-btn').forEach(btn => {
+        if (btn.dataset.scene === state.currentScene) {
+          btn.className = 'scene-tab-btn px-2.5 py-1 rounded-md text-xs font-semibold bg-blue-600 text-white transition';
+        } else {
+          btn.className = 'scene-tab-btn px-2.5 py-1 rounded-md text-xs font-semibold text-slate-400 hover:text-white transition';
+        }
+      });
+
+      // تحديث قائمة العناصر المرقمة (SoM List)
+      const listEl = document.getElementById('elementsListContainer');
+      const selectEl = document.getElementById('targetBoxSelect');
+      listEl.innerHTML = '';
+      selectEl.innerHTML = '';
+
+      cfg.elements.forEach(el => {
+        const cx = Math.round((el.bbox[0] + el.bbox[2]) / 2);
+        const cy = Math.round((el.bbox[1] + el.bbox[3]) / 2);
+
+        const card = document.createElement('button');
+        card.type = 'button';
+        card.className = 'w-full text-right p-2.5 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-slate-800 hover:border-slate-600 transition flex items-center justify-between gap-2 group';
+        card.innerHTML = `
+          <div class="flex items-center gap-2.5 min-w-0">
+            <span class="font-mono-code text-xs font-bold px-2 py-0.5 rounded text-white" style="background:${el.color}">[${el.box_id}]</span>
+            <div class="truncate">
+              <div class="text-xs font-semibold text-slate-100 group-hover:text-white truncate">${el.label}</div>
+              <div class="font-mono-code text-[10px] text-slate-400">${el.type} | center: (${cx}, ${cy})</div>
+            </div>
+          </div>
+          <span class="text-xs text-blue-400 opacity-80 group-hover:opacity-100">نقر ⌖</span>
+        `;
+        card.addEventListener('click', () => {
+          triggerVisualActionOnBox(el.box_id, 'click', null);
+        });
+        listEl.appendChild(card);
+
+        const opt = document.createElement('option');
+        opt.value = String(el.box_id);
+        opt.textContent = `[${el.box_id}] ${el.label}`;
+        selectEl.appendChild(opt);
+      });
+
+      // تحديث طابور بيانات الإكسل
+      const queueEl = document.getElementById('excelQueueContainer');
+      queueEl.innerHTML = '';
+      state.excelClients.forEach(item => {
+        const isDone = item.status.includes('✓') || item.status.includes('تم التسجيل');
+        const row = document.createElement('div');
+        row.className = 'p-2 rounded-lg bg-slate-900/80 border border-slate-800 flex items-center justify-between gap-2';
+        row.innerHTML = `
+          <div class="truncate">
+            <span class="font-semibold text-slate-200">${item.name}</span>
+            <span class="text-slate-400 mx-1">•</span>
+            <span class="text-emerald-400 font-mono-code">${item.amount} SAR</span>
+          </div>
+          <span class="text-[11px] px-2 py-0.5 rounded-md ${isDone ? 'bg-emerald-500/15 text-emerald-300' : 'bg-amber-500/15 text-amber-300'}">${item.status}</span>
+        `;
+        queueEl.appendChild(row);
+      });
+    }
+
+    // =========================================================================
+    // تحريك مؤشر الماوس الفعلي وإطلاق حلقة النقر (Visual Action & Cursor Engine)
+    // =========================================================================
+    function moveCursorSmoothlyTo(tx, ty, actionLabel, targetLabel) {
+      state.prevCursor = { x: state.cursor.x, y: state.cursor.y };
+      state.targetCursor = { x: tx, y: ty };
+      state.animProgress = 0.0;
+      state.lastActionName = actionLabel;
+      state.lastTargetLabel = targetLabel;
+
+      document.getElementById('lastTargetReadout').textContent = targetLabel;
+      document.getElementById('lastActionSub').textContent = actionLabel;
+    }
+
+    function spawnRipple(x, y, color = '#f43f5e') {
+      if (!state.showRippleHud) return;
+      state.ripples.push({ x, y, radius: 6, maxRadius: 44, alpha: 1.0, color });
+    }
+
+    function triggerVisualActionOnBox(boxId, actionType = 'click', textToInject = null) {
+      const cfg = sceneConfigs[state.currentScene];
+      const el = cfg.elements.find(e => e.box_id === Number(boxId));
+      if (!el) return;
+
+      const cx = Math.round((el.bbox[0] + el.bbox[2]) / 2);
+      const cy = Math.round((el.bbox[1] + el.bbox[3]) / 2);
+
+      const actDesc = textToInject
+        ? `${actionType} + pyperclip("${textToInject}")`
+        : `${actionType}(box_id=${el.box_id})`;
+
+      moveCursorSmoothlyTo(cx, cy, actDesc, `[${el.box_id}] ${el.label}`);
+      spawnRipple(cx, cy, el.color);
+
+      // تحديث بيانات النموذج التفاعلي إذا كنا في شاشة النظام المحاسبي
+      if (state.currentScene === 'accounting') {
+        if (el.box_id === 1 && textToInject) {
+          state.accountingForm.clientName = textToInject;
+        } else if (el.box_id === 2 && textToInject) {
+          state.accountingForm.amountSar = textToInject;
+        } else if (el.box_id === 3 && textToInject) {
+          state.accountingForm.referenceNo = textToInject;
+        } else if (el.box_id === 4) {
+          const now = new Date().toLocaleTimeString('en-GB');
+          state.accountingForm.savedReceipts.unshift({
+            id: 'REC-0' + (state.accountingForm.savedReceipts.length + 1),
+            name: state.accountingForm.clientName,
+            amount: state.accountingForm.amountSar + ' ر.س',
+            time: now
+          });
+          showToast(`تم حفظ إيصال "${state.accountingForm.clientName}" بنجاح!`);
+        } else if (el.box_id === 5) {
+          showToast('تم إرسال أمر طباعة الإيصال إلى حافظة PDF.');
+        }
+      }
+
+      const layerName =
+        state.currentScene === 'powershell' ? 'layer_1_system_cli' :
+        state.currentScene === 'explorer' ? 'layer_2_structural_ui_dom' :
+        'layer_3_pure_vision_omniparser';
+
+      appendMcpLog(
+        layerName,
+        textToInject ? 'smart_interact' : 'gui_action',
+        textToInject
+          ? { box_id: el.box_id, action: actionType, text_to_type: textToInject }
+          : { action: actionType, box_id: el.box_id, x: cx, y: cy },
+        `تم توجيه المؤشر إلى [${el.box_id}] (${el.label}) وتنفيذ ${actDesc}.`
+      );
+      syncSidebarAndIndicators();
+    }
+
+    // =========================================================================
+    // حلقة الرسم الحية للشاشة والصناديق المرقمة ومؤشر الماوس (Canvas Render Loop)
+    // =========================================================================
+    const canvas = document.getElementById('liveScreenCanvas');
+    const ctx = canvas.getContext('2d');
+
+    function drawRoundedRect(ctx, x, y, w, h, r, fillStyle, strokeStyle, lineWidth = 1.5) {
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.lineTo(x + w - r, y);
+      ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+      ctx.lineTo(x + w, y + h - r);
+      ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+      ctx.lineTo(x + r, y + h);
+      ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+      ctx.lineTo(x, y + r);
+      ctx.quadraticCurveTo(x, y, x + r, y);
+      ctx.closePath();
+      if (fillStyle) {
+        ctx.fillStyle = fillStyle;
+        ctx.fill();
+      }
+      if (strokeStyle) {
+        ctx.strokeStyle = strokeStyle;
+        ctx.lineWidth = lineWidth;
+        ctx.stroke();
+      }
+    }
+
+    function renderAccountingScene() {
+      // خلفية سطح المكتب والنافذة المحاسبية
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // إطار النافذة
+      drawRoundedRect(ctx, 28, 22, 824, 436, 12, '#f8fafc', '#334155', 2);
+      // شريط عنوان النافذة
+      drawRoundedRect(ctx, 28, 22, 824, 42, 12, '#1e293b', null);
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 14px Cairo, sans-serif';
+      ctx.textAlign = 'right';
+      ctx.fillText('برنامج آفاق المحاسبي الموحد — إصدار سندات القبض (واجهة رسومية مغلقة)', 830, 48);
+
+      // دوائر التحكم في النافذة
+      ctx.fillStyle = '#ef4444'; ctx.beginPath(); ctx.arc(52, 43, 6, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#f59e0b'; ctx.beginPath(); ctx.arc(72, 43, 6, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#10b981'; ctx.beginPath(); ctx.arc(92, 43, 6, 0, Math.PI * 2); ctx.fill();
+
+      // عناوين الحقول اليمنى
+      ctx.fillStyle = '#1e293b';
+      ctx.font = 'bold 13px Cairo, sans-serif';
+      ctx.fillText('اسم العميل (عربي / إنجليزي):', 820, 108);
+      drawRoundedRect(ctx, 480, 118, 340, 40, 8, '#ffffff', '#cbd5e1', 1.5);
+      ctx.fillStyle = '#0f172a';
+      ctx.font = '600 13px Cairo, sans-serif';
+      ctx.fillText(state.accountingForm.clientName, 808, 143);
+
+      ctx.fillStyle = '#1e293b';
+      ctx.font = 'bold 13px Cairo, sans-serif';
+      ctx.fillText('المبلغ المستلم (ريال سعودي):', 820, 170);
+      drawRoundedRect(ctx, 480, 178, 340, 40, 8, '#ffffff', '#cbd5e1', 1.5);
+      ctx.fillStyle = '#047857';
+      ctx.font = 'bold 14px "JetBrains Mono", monospace';
+      ctx.fillText(state.accountingForm.amountSar + ' SAR', 808, 203);
+
+      ctx.fillStyle = '#1e293b';
+      ctx.font = 'bold 13px Cairo, sans-serif';
+      ctx.fillText('رقم المرجع المحاسبي:', 820, 230);
+      drawRoundedRect(ctx, 480, 238, 340, 40, 8, '#ffffff', '#cbd5e1', 1.5);
+      ctx.fillStyle = '#334155';
+      ctx.font = '600 13px "JetBrains Mono", monospace';
+      ctx.fillText(state.accountingForm.referenceNo, 808, 263);
+
+      // أزرار الحفظ والطباعة
+      drawRoundedRect(ctx, 660, 305, 160, 45, 9, '#059669', '#047857', 1.5);
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 13px Cairo, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('حفظ الإيصال ✓', 740, 333);
+
+      drawRoundedRect(ctx, 480, 305, 165, 45, 9, '#2563eb', '#1d4ed8', 1.5);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillText('طباعة PDF 🖨', 562, 333);
+
+      // القسم الأيسر: الفرع وجدول الإيصالات المسجلة
+      ctx.textAlign = 'right';
+      ctx.fillStyle = '#1e293b';
+      ctx.font = 'bold 13px Cairo, sans-serif';
+      ctx.fillText('الفرع المحاسبي النشط:', 420, 108);
+      drawRoundedRect(ctx, 60, 118, 360, 40, 8, '#f1f5f9', '#cbd5e1', 1.5);
+      ctx.fillStyle = '#0f172a';
+      ctx.font = '600 13px Cairo, sans-serif';
+      ctx.fillText(state.accountingForm.branch + '  ▾', 405, 143);
+
+      // صندوق سجل الإيصالات المحفوظة
+      drawRoundedRect(ctx, 60, 178, 360, 250, 10, '#f8fafc', '#e2e8f0', 1.5);
+      ctx.fillStyle = '#334155';
+      ctx.font = 'bold 12px Cairo, sans-serif';
+      ctx.fillText('آخر الإيصالات المسجلة في الجلسة:', 405, 202);
+
+      state.accountingForm.savedReceipts.slice(0, 4).forEach((rec, idx) => {
+        const ry = 216 + idx * 48;
+        drawRoundedRect(ctx, 74, ry, 332, 40, 7, '#ffffff', '#cbd5e1', 1);
+        ctx.fillStyle = '#0f172a';
+        ctx.font = 'bold 12px Cairo, sans-serif';
+        ctx.textAlign = 'right';
+        ctx.fillText(`${rec.name}`, 394, ry + 24);
+        ctx.fillStyle = '#059669';
+        ctx.font = 'bold 11px "JetBrains Mono", monospace';
+        ctx.textAlign = 'left';
+        ctx.fillText(`${rec.amount} | ${rec.id}`, 84, ry + 24);
+      });
+    }
+
+    function renderExplorerScene() {
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      drawRoundedRect(ctx, 28, 22, 824, 436, 12, '#1e293b', '#475569', 2);
+
+      ctx.fillStyle = '#f8fafc';
+      ctx.font = 'bold 14px Cairo, sans-serif';
+      ctx.textAlign = 'right';
+      ctx.fillText('مستكشف ملفات Windows — قراءة شجرة عناصر الواجهة (Windows UI Automation)', 830, 46);
+
+      // شريط العنوان
+      drawRoundedRect(ctx, 140, 62, 580, 34, 6, '#0f172a', '#3b82f6', 1.5);
+      ctx.fillStyle = '#93c5fd';
+      ctx.font = '12px "JetBrains Mono", monospace';
+      ctx.textAlign = 'left';
+      ctx.fillText('C:\\Projects\\Munjiz\\workspace', 155, 83);
+
+      // زر مجلد جديد
+      drawRoundedRect(ctx, 735, 62, 110, 34, 6, '#334155', '#64748b', 1);
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 12px Cairo, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('+ مجلد جديد', 790, 84);
+
+      // عناصر الملفات
+      drawRoundedRect(ctx, 220, 140, 590, 45, 8, '#0f172a', '#334155', 1.5);
+      ctx.fillStyle = '#34d399';
+      ctx.font = 'bold 13px "JetBrains Mono", monospace';
+      ctx.textAlign = 'left';
+      ctx.fillText('📊 project_clients.xlsx   (24 KB - Excel Workbook)', 240, 168);
+
+      drawRoundedRect(ctx, 220, 198, 590, 45, 8, '#0f172a', '#334155', 1.5);
+      ctx.fillStyle = '#60a5fa';
+      ctx.fillText('🐍 munjiz_os_controller.py   (MCP Hybrid Server v2.0)', 240, 226);
+    }
+
+    function renderPowerShellScene() {
+      ctx.fillStyle = '#020617';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      drawRoundedRect(ctx, 28, 22, 824, 436, 12, '#090d16', '#1e293b', 2);
+
+      ctx.fillStyle = '#38bdf8';
+      ctx.font = 'bold 13px "JetBrains Mono", monospace';
+      ctx.textAlign = 'left';
+      ctx.fillText('PS C:\\Projects\\Munjiz> python munjiz_os_controller.py --mode mcp', 55, 65);
+      ctx.fillStyle = '#34d399';
+      ctx.fillText('[Munjiz-OS] Per-Monitor DPI Awareness V2 enabled (100% coordinate accuracy).', 55, 95);
+      ctx.fillText('[Layer-1 CLI] read_tabular_file_fast("project_clients.xlsx") -> 3 records in 0.8ms', 55, 125);
+      ctx.fillStyle = '#e2e8f0';
+      ctx.fillText('  101 | أحمد بن محمد العتيبي       | 4,500 SAR', 55, 155);
+      ctx.fillText('  102 | سارة بنت عبدالله القحطاني  | 8,200 SAR', 55, 180);
+      ctx.fillText('  103 | شركة آفاق التقنية المتقدمة | 15,000 SAR', 55, 205);
+
+      drawRoundedRect(ctx, 80, 360, 340, 55, 10, '#064e3b', '#10b981', 1.5);
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 13px Cairo, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('تشغيل قراءة الإكسل الفورية (Layer 1)', 250, 392);
+
+      drawRoundedRect(ctx, 450, 360, 350, 55, 10, '#1e3a8a', '#3b82f6', 1.5);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillText('فحص اتصال خادم OmniParser V2', 625, 392);
+    }
+
+    function renderSomBoxesOverlay() {
+      if (!state.showSomBoxes) return;
+      const cfg = sceneConfigs[state.currentScene];
+
+      cfg.elements.forEach(el => {
+        const [x1, y1, x2, y2] = el.bbox;
+        const w = x2 - x1;
+        const h = y2 - y1;
+
+        ctx.save();
+        ctx.strokeStyle = el.color;
+        ctx.lineWidth = 2.2;
+        ctx.setLineDash([5, 3]);
+        ctx.strokeRect(x1, y1, w, h);
+        ctx.setLineDash([]);
+
+        // خلفية شارة الرقم [box_id]
+        const tag = `[${el.box_id}] ${el.label}`;
+        ctx.font = 'bold 11px Cairo, sans-serif';
+        const textWidth = ctx.measureText(tag).width;
+        const pillW = textWidth + 14;
+        const pillH = 20;
+        const pillX = x1;
+        const pillY = Math.max(4, y1 - pillH - 2);
+
+        drawRoundedRect(ctx, pillX, pillY, pillW, pillH, 5, el.color, null);
+        ctx.fillStyle = '#ffffff';
+        ctx.textAlign = 'left';
+        ctx.fillText(tag, pillX + 7, pillY + 14);
+        ctx.restore();
+      });
+    }
+
+    function renderCursorAndTrajectory() {
+      // تحديث حركة الماوس السلسة
+      if (state.animProgress < 1.0) {
+        state.animProgress = Math.min(1.0, state.animProgress + 0.08);
+        const ease = 1 - Math.pow(1 - state.animProgress, 3);
+        state.cursor.x = Math.round(state.prevCursor.x + (state.targetCursor.x - state.prevCursor.x) * ease);
+        state.cursor.y = Math.round(state.prevCursor.y + (state.targetCursor.y - state.prevCursor.y) * ease);
+        document.getElementById('cursorCoordsReadout').textContent = `X: ${state.cursor.x}, Y: ${state.cursor.y}`;
+      }
+
+      // رسم حلقات النقر المضيئة (Live Click Ripple HUD)
+      for (let i = state.ripples.length - 1; i >= 0; i--) {
+        const rp = state.ripples[i];
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(rp.x, rp.y, rp.radius, 0, Math.PI * 2);
+        ctx.strokeStyle = rp.color;
+        ctx.globalAlpha = rp.alpha;
+        ctx.lineWidth = 3;
+        ctx.stroke();
+        ctx.restore();
+
+        rp.radius += 1.8;
+        rp.alpha -= 0.04;
+        if (rp.alpha <= 0) {
+          state.ripples.splice(i, 1);
+        }
+      }
+
+      if (!state.showTrajectory) return;
+
+      const cx = state.cursor.x;
+      const cy = state.cursor.y;
+
+      // رسم خط مسار الماوس (Trajectory Line)
+      if (state.prevCursor.x !== cx || state.prevCursor.y !== cy) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(state.prevCursor.x, state.prevCursor.y);
+        ctx.lineTo(cx, cy);
+        ctx.strokeStyle = 'rgba(59, 130, 246, 0.75)';
+        ctx.lineWidth = 2.5;
+        ctx.setLineDash([6, 4]);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      // رسم مؤشر الماوس الحي (Crosshair + Halo)
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(cx, cy, 13, 0, Math.PI * 2);
+      ctx.strokeStyle = '#f43f5e';
+      ctx.lineWidth = 2.5;
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.arc(cx, cy, 4, 0, Math.PI * 2);
+      ctx.fillStyle = '#f43f5e';
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.moveTo(cx - 19, cy); ctx.lineTo(cx + 19, cy);
+      ctx.moveTo(cx, cy - 19); ctx.lineTo(cx, cy + 19);
+      ctx.strokeStyle = '#f43f5e';
+      ctx.lineWidth = 1.8;
+      ctx.stroke();
+
+      // شارة إحداثيات المؤشر المرافقة للماوس
+      const badgeText = `Cursor (${cx}, ${cy}) | ${state.lastActionName}`;
+      ctx.font = '600 11px "JetBrains Mono", monospace';
+      const bw = Math.min(340, ctx.measureText(badgeText).width + 16);
+      const bx = Math.min(canvas.width - bw - 10, cx + 16);
+      const by = Math.min(canvas.height - 30, cy + 14);
+
+      drawRoundedRect(ctx, bx, by, bw, 22, 6, 'rgba(15, 23, 42, 0.92)', '#f43f5e', 1.2);
+      ctx.fillStyle = '#f8fafc';
+      ctx.textAlign = 'left';
+      ctx.fillText(badgeText.slice(0, 42), bx + 8, by + 15);
+      ctx.restore();
+    }
+
+    function masterRenderLoop() {
+      if (state.currentScene === 'accounting') {
+        renderAccountingScene();
+      } else if (state.currentScene === 'explorer') {
+        renderExplorerScene();
+      } else {
+        renderPowerShellScene();
+      }
+      renderSomBoxesOverlay();
+      renderCursorAndTrajectory();
+      requestAnimationFrame(masterRenderLoop);
+    }
+
+    // =========================================================================
+    // أحداث النقر المباشر على الشاشة وأزرار التحكم (Event Listeners)
+    // =========================================================================
+    canvas.addEventListener('click', (evt) => {
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
+      const clickX = Math.round((evt.clientX - rect.left) * scaleX);
+      const clickY = Math.round((evt.clientY - rect.top) * scaleY);
+
+      const cfg = sceneConfigs[state.currentScene];
+      const hitBox = cfg.elements.find(el =>
+        clickX >= el.bbox[0] && clickX <= el.bbox[2] &&
+        clickY >= el.bbox[1] && clickY <= el.bbox[3]
+      );
+
+      if (hitBox) {
+        const textVal = document.getElementById('arabicTextInput').value.trim();
+        const isInput = hitBox.type === 'text_input' || hitBox.type === 'EditControl';
+        triggerVisualActionOnBox(hitBox.box_id, 'click', isInput ? textVal : null);
+      } else {
+        moveCursorSmoothlyTo(clickX, clickY, `gui_action(click, x=${clickX}, y=${clickY})`, `إحداثيات حرة (${clickX}, ${clickY})`);
+        spawnRipple(clickX, clickY, '#3b82f6');
+        appendMcpLog('layer_3_pure_vision_omniparser', 'gui_action', { action: 'click', x: clickX, y: clickY }, 'نقر بصري حر على إحداثيات الشاشة.');
+      }
+    });
+
+    // تبديل المشاهد الثلاثة
+    document.querySelectorAll('.scene-tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        state.currentScene = btn.dataset.scene;
+        syncSidebarAndIndicators();
+      });
+    });
+
+    // مفاتيح الإظهار/الإخفاء
+    document.getElementById('toggleSomBoxes').addEventListener('change', (e) => {
+      state.showSomBoxes = e.target.checked;
+    });
+    document.getElementById('toggleTrajectory').addEventListener('change', (e) => {
+      state.showTrajectory = e.target.checked;
+    });
+    document.getElementById('toggleRippleHud').addEventListener('change', (e) => {
+      state.showRippleHud = e.target.checked;
+    });
+
+    // زر التنفيذ اليدوي
+    document.getElementById('executeManualActionBtn').addEventListener('click', () => {
+      const boxId = Number(document.getElementById('targetBoxSelect').value);
+      const act = document.getElementById('mouseActionSelect').value;
+      const textVal = document.getElementById('arabicTextInput').value.trim();
+      triggerVisualActionOnBox(boxId, act, textVal || null);
+    });
+
+    // تشغيل خطوة واحدة من السيناريو التلقائي
+    function executeSingleScenarioStep() {
+      const step = automatedSteps[state.scenarioStepIndex];
+      state.currentScene = step.scene;
+      step.mutate();
+      syncSidebarAndIndicators();
+
+      const cfg = sceneConfigs[state.currentScene];
+      const targetEl = cfg.elements.find(e => e.box_id === step.targetBoxId) || cfg.elements[0];
+      const cx = Math.round((targetEl.bbox[0] + targetEl.bbox[2]) / 2);
+      const cy = Math.round((targetEl.bbox[1] + targetEl.bbox[3]) / 2);
+
+      moveCursorSmoothlyTo(cx, cy, `${step.tool}()`, `[${targetEl.box_id}] ${targetEl.label}`);
+      spawnRipple(cx, cy, targetEl.color);
+      appendMcpLog(step.layer, step.tool, step.args, step.note);
+
+      state.scenarioStepIndex = (state.scenarioStepIndex + 1) % automatedSteps.length;
+    }
+
+    document.getElementById('stepScenarioBtn').addEventListener('click', () => {
+      executeSingleScenarioStep();
+    });
+
+    document.getElementById('runScenarioBtn').addEventListener('click', () => {
+      if (state.scenarioRunning) {
+        clearInterval(state.scenarioTimer);
+        state.scenarioRunning = false;
+        document.getElementById('runScenarioIcon').textContent = '▶';
+        document.getElementById('runScenarioLabel').textContent = 'تشغيل سيناريو مُنجز التلقائي';
+        showToast('تم إيقاف السيناريو التلقائي مؤقتاً.');
+        return;
+      }
+      state.scenarioRunning = true;
+      document.getElementById('runScenarioIcon').textContent = '⏸';
+      document.getElementById('runScenarioLabel').textContent = 'إيقاف السيناريو مؤقتاً';
+      executeSingleScenarioStep();
+      state.scenarioTimer = setInterval(() => {
+        executeSingleScenarioStep();
+      }, 2200);
+    });
+
+    document.getElementById('resetScenarioBtn').addEventListener('click', () => {
+      clearInterval(state.scenarioTimer);
+      state.scenarioRunning = false;
+      state.scenarioStepIndex = 0;
+      document.getElementById('runScenarioIcon').textContent = '▶';
+      document.getElementById('runScenarioLabel').textContent = 'تشغيل سيناريو مُنجز التلقائي';
+      state.currentScene = 'accounting';
+      state.accountingForm.clientName = 'أحمد بن محمد العتيبي';
+      state.accountingForm.amountSar = '4500';
+      state.accountingForm.referenceNo = 'INV-2026-101';
+      state.excelClients[0].status = 'تم التسجيل';
+      state.excelClients[1].status = 'قيد الإدخال';
+      state.excelClients[2].status = 'في الانتظار';
+      moveCursorSmoothlyTo(240, 180, 'reset()', 'وضع الاستعداد');
+      syncSidebarAndIndicators();
+      showToast('تمت إعادة ضبط المحاكاة إلى الوضع الابتدائي.');
+    });
+
+    document.getElementById('clearLogBtn').addEventListener('click', () => {
+      document.getElementById('mcpLogsContainer').innerHTML = '';
+    });
+
+    // نافذة إعدادات MCP والنسخ للحافظة
+    const modal = document.getElementById('mcpModal');
+    document.getElementById('openModalBtn').addEventListener('click', () => {
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    });
+    document.getElementById('closeModalBtn').addEventListener('click', () => {
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    });
+    document.getElementById('copyMcpConfigBtn').addEventListener('click', () => {
+      const codeText = document.getElementById('mcpConfigCode').textContent;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(codeText).then(() => {
+          showToast('تم نسخ إعدادات mcp_config.json إلى الحافظة!');
+        }).catch(() => fallbackCopy(codeText));
+      } else {
+        fallbackCopy(codeText);
+      }
+    });
+
+    function fallbackCopy(text) {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      try {
+        document.execCommand('copy');
+        showToast('تم نسخ إعدادات mcp_config.json إلى الحافظة!');
+      } catch (e) {}
+      document.body.removeChild(ta);
+    }
+
+    // التشغيل الأولي عند تحميل الصفحة
+    window.addEventListener('load', () => {
+      syncSidebarAndIndicators();
+      appendMcpLog(
+        'layer_3_pure_vision_omniparser',
+        'capture_live_view',
+        { include_base64: true },
+        'بدء بث الشاشة الحية ورسم مؤشر الماوس والصناديق المرقمة Set-of-Mark.'
+      );
+      requestAnimationFrame(masterRenderLoop);
+    });
+  </script>
+</body>
+</html>

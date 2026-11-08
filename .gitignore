@@ -1,0 +1,24 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments & packaging
+.venv/
+venv/
+ENV/
+build/
+dist/
+*.egg-info/
+
+# Munjiz Vision Cache & OmniParser V2 Weights (Do NOT commit heavy weights)
+munjiz_vision_cache/
+weights/
+*.pt
+*.onnx
+*.safetensors
+
+# Environment variables & IDE
+.env
+.vscode/
+.idea/
